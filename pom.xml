@@ -27,15 +27,6 @@
 
     <properties>
         <java.version>17</java.version>
-        <!--
-            El spring-boot-starter-parent 3.3.5 gestiona una version de Lombok
-            (~1.18.32) anterior al soporte de JDK 24 (agregado recien en
-            Lombok 1.18.38). Si compilas con un JDK 24 instalado localmente,
-            el annotation processor de Lombok falla silenciosamente y no
-            genera getters/setters/builder/@Slf4j. Se fija aqui una version
-            mas reciente y compatible.
-        -->
-        <lombok.version>1.18.42</lombok.version>
     </properties>
 
     <dependencies>
@@ -81,20 +72,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
