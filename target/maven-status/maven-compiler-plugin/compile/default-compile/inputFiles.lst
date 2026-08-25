@@ -16,6 +16,8 @@ C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duo
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\exceptions\BatchJobLaunchException.java
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\listeners\BatchRetryListener.java
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\listeners\BatchStepListener.java
+C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\listeners\ResumenAnualListener.java
+C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\listeners\ResumenTransaccionesListener.java
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\processors\CuentaAnualProcessor.java
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\processors\InteresProcessor.java
 C:\Users\chelnovix\OneDrive\Desktop\bankxyz-migracion-batch\src\main\java\cl\duoc\bankxyz\migracion\processors\TransaccionProcessor.java

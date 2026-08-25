@@ -7,11 +7,13 @@ cl\duoc\bankxyz\migracion\services\TransaccionJobService.class
 cl\duoc\bankxyz\migracion\entities\InteresEntity.class
 cl\duoc\bankxyz\migracion\services\InteresJobService.class
 cl\duoc\bankxyz\migracion\tasklets\ResumenAnualTasklet.class
+cl\duoc\bankxyz\migracion\listeners\ResumenAnualListener.class
 cl\duoc\bankxyz\migracion\controllers\TransaccionJobController.class
 cl\duoc\bankxyz\migracion\controllers\CuentaAnualJobController.class
 cl\duoc\bankxyz\migracion\controllers\InteresJobController.class
 cl\duoc\bankxyz\migracion\services\ConsultaResultadosService.class
 cl\duoc\bankxyz\migracion\config\CommonBatchConfig.class
+cl\duoc\bankxyz\migracion\listeners\ResumenTransaccionesListener.class
 cl\duoc\bankxyz\migracion\processors\CuentaAnualProcessor.class
 cl\duoc\bankxyz\migracion\config\CuentaAnualBatchConfig.class
 cl\duoc\bankxyz\migracion\exceptions\BatchJobLaunchException.class
