@@ -55,47 +55,6 @@ JDBC URL: `jdbc:h2:mem:bankxyz_batch` — usuario `sa`, sin contraseña.
 
 
 
-## Comparación de configuraciones de escalado
-
-El número de hilos (`bankxyz.batch.hilos`) y el tamaño de chunk
-(`bankxyz.batch.chunk-size`) son configurables por propiedad (ver
-`application.properties`) precisamente para poder comparar distintas
-combinaciones sin recompilar, y así justificar la configuración final con
-datos y no solo "a ojo". `BatchStepListener` ya loguea la duración de cada
-Step (`afterStep`), que es el tiempo a comparar.
-
-Para comparar, correr el mismo Job (mismo archivo CSV) con distintos
-valores, ej.:
-
-```bash
-# Config A: 1 hilo, chunk pequeño (referencia "secuencial")
-mvn spring-boot:run -Dspring-boot.run.arguments="--bankxyz.batch.hilos=1 --bankxyz.batch.chunk-size=5"
-
-# Config B: la que trae el proyecto por defecto
-mvn spring-boot:run -Dspring-boot.run.arguments="--bankxyz.batch.hilos=3 --bankxyz.batch.chunk-size=5"
-
-# Config C: más hilos y chunk más grande
-mvn spring-boot:run -Dspring-boot.run.arguments="--bankxyz.batch.hilos=6 --bankxyz.batch.chunk-size=20"
-```
-
-Y anotar acá la duración que reporta el log `Step '...' FINALIZADO en {} ms`
-para el Step principal de cada Job (ej. `transaccionStep`), disparando el
-mismo Job una vez por configuración:
-
-| Configuración | Hilos | Chunk | Duración `transaccionStep` |
-|---|---|---|---|
-| A | 1 | 5  | _completar tras correr localmente_ |
-| B (default) | 3 | 5  | _completar tras correr localmente_ |
-| C | 6 | 20 | _completar tras correr localmente_ |
-
-> Nota: con el volumen de datos de prueba de esta actividad las
-> diferencias pueden ser mínimas (el archivo es chico); igual vale la pena
-> dejar los 3 números y una conclusión de 1-2 líneas (ej. "con este volumen
-> de datos 3 hilos / chunk 5 ya satura la ganancia de paralelismo, más
-> hilos no mejora el tiempo" o lo que efectivamente se observe), porque es
-> justamente esa comparación explícita la que pide la pauta para el
-> criterio de escalado.
-
 ## Reglas de negocio aplicadas
 - **Fechas**: los 3 processors aceptan indistintamente `yyyy-MM-dd`, `yyyy/MM/dd`, `dd-MM-yyyy` y
   `dd/MM/yyyy` (los 4 formatos que trae la data legacy mezclados en el mismo archivo) y normalizan a
