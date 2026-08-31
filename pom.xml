@@ -20,7 +20,7 @@
     <version>1.0.0</version>
     <name>bankxyz-migracion-batch</name>
     <description>
-        Semana 1 - Migracion de procesos batch legacy del Banco XYZ con Spring Batch.
+        Semana 3 - Migracion de procesos batch legacy del Banco XYZ con Spring Batch.
         Tres Jobs: reporte de transacciones diarias, calculo de intereses mensuales
         y generacion de estados de cuenta anuales. Persistencia en H2 en memoria.
     </description>

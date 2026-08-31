@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.batch.item.ItemProcessor;
 
@@ -19,8 +22,24 @@ import cl.duoc.bankxyz.migracion.entities.CuentaAnualEntity;
  */
 public class CuentaAnualProcessor implements ItemProcessor<CuentaAnualDTO, CuentaAnualEntity> {
 
-    private static final DateTimeFormatter FORMATO_ISO = DateTimeFormatter.ISO_LOCAL_DATE; // yyyy-MM-dd
-    private static final DateTimeFormatter FORMATO_LEGACY = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    /**
+     * Igual que en TransaccionProcessor: la data legacy mezcla 4 formatos de
+     * fecha (uuuu-MM-dd, uuuu/MM/dd, dd-MM-uuuu, dd/MM/uuuu) en el mismo
+     * archivo. Se usa el patron 'u' (año ISO) y no 'y' (año-de-era): con
+     * ResolverStyle.STRICT, 'y' exige ademas una Era que nunca llega y la
+     * fecha nunca resuelve. 'u' evita ese problema y, junto con STRICT,
+     * sigue rechazando fechas inexistentes (mes 13, dia 32, etc.).
+     */
+    private static final List<DateTimeFormatter> FORMATOS_FECHA = List.of(
+            DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuu/MM/dd").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT));
+
+    // Tipos de movimiento validos segun el sistema legacy del Banco XYZ.
+    // La data trae variantes invalidas (ej. "depósito" con tilde, "pago")
+    // que deben quedar RECHAZADAS en vez de contaminar el resumen anual.
+    private static final Set<String> TIPOS_VALIDOS = Set.of("deposito", "retiro", "compra");
 
     @Override
     public CuentaAnualEntity process(CuentaAnualDTO dto) {
@@ -28,19 +47,25 @@ public class CuentaAnualProcessor implements ItemProcessor<CuentaAnualDTO, Cuent
         String tipoTransaccion = dto.getTransaccion() == null ? "" : dto.getTransaccion().trim().toLowerCase();
         String descripcion = dto.getDescripcion() == null ? "" : dto.getDescripcion().trim();
 
-        // 1) Validar fecha (legacy puede traer yyyy/MM/dd)
+        // 1) Validar fecha (legacy puede traer varios formatos)
         LocalDate fecha = parsearFecha(dto.getFecha());
         if (fecha == null) {
             return rechazar(cuentaId, null, tipoTransaccion, null, descripcion,
                     "Formato de fecha invalido: '" + dto.getFecha() + "'");
         }
 
-        // 2) Validar descripcion faltante
+        // 2) Validar tipo de movimiento (rechaza variantes como "depósito" o "pago")
+        if (!TIPOS_VALIDOS.contains(tipoTransaccion)) {
+            return rechazar(cuentaId, fecha, tipoTransaccion, null, descripcion,
+                    "Tipo de transaccion invalido: '" + dto.getTransaccion() + "'");
+        }
+
+        // 3) Validar descripcion faltante
         if (descripcion.isBlank()) {
             return rechazar(cuentaId, fecha, tipoTransaccion, null, descripcion, "Descripcion faltante");
         }
 
-        // 3) Validar monto
+        // 4) Validar monto
         BigDecimal monto;
         try {
             monto = new BigDecimal(dto.getMonto().trim());
@@ -94,14 +119,13 @@ public class CuentaAnualProcessor implements ItemProcessor<CuentaAnualDTO, Cuent
             return null;
         }
         String valor = rawFecha.trim();
-        try {
-            return LocalDate.parse(valor, FORMATO_ISO);
-        } catch (DateTimeParseException ex) {
+        for (DateTimeFormatter formato : FORMATOS_FECHA) {
             try {
-                return LocalDate.parse(valor, FORMATO_LEGACY);
-            } catch (DateTimeParseException ex2) {
-                return null;
+                return LocalDate.parse(valor, formato);
+            } catch (DateTimeParseException ex) {
+                // se intenta con el siguiente formato conocido
             }
         }
+        return null; // ningun formato calzo (o la fecha no existe, ej. mes 13)
     }
 }

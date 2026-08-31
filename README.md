@@ -1,4 +1,4 @@
-# Migración Batch Banco XYZ (Semana 2 - PBY2203)
+# Migración Batch Banco XYZ (Semana 3 - PBY2203)
 
 ## Objetivo del proyecto
 Migrar y modernizar 3 procesos legacy del Banco XYZ usando **Spring Batch**:
@@ -7,7 +7,7 @@ Migrar y modernizar 3 procesos legacy del Banco XYZ usando **Spring Batch**:
 2. **Cálculo de Intereses Mensuales** — aplica interés según tipo de cuenta y actualiza el saldo final.
 3. **Generación de Estados de Cuenta Anuales** — compila los movimientos del año por cuenta y genera un informe de auditoría.
 
-Los datos de origen vienen del repositorio legacy real: `https://github.com/KariVillagran/bank_legacy_data` (carpeta `data/semana_1`).
+Los datos de origen vienen del repositorio legacy real: `https://github.com/KariVillagran/bank_legacy_data` (carpeta `data/semana_3`), que incorpora los casos de inconsistencia definidos para esta semana: fechas en 4 formatos distintos mezclados en el mismo archivo (`yyyy-MM-dd`, `yyyy/MM/dd`, `dd-MM-yyyy`, `dd/MM/yyyy`) incluyendo fechas inexistentes (ej. `2024-13-01`), tipos de transacción/cuenta inválidos (`invalid`, `desconocido`, `unknown`, `-1`), montos y saldos vacíos o negativos, edades fuera de rango, y variantes de tipo de movimiento anual no reconocidas (`depósito` con tilde, `pago`).
 
 ## Estructura del código
 ```
@@ -56,11 +56,20 @@ JDBC URL: `jdbc:h2:mem:bankxyz_batch` — usuario `sa`, sin contraseña.
 
 
 ## Reglas de negocio aplicadas
-- **Transacciones**: se rechaza si el monto es ≤ 0, si el tipo no es `debito`/`credito`, si la fecha
-  no es parseable, o si la fila es un duplicado exacto (misma fecha + monto + tipo ya visto).
+- **Fechas**: los 3 processors aceptan indistintamente `yyyy-MM-dd`, `yyyy/MM/dd`, `dd-MM-yyyy` y
+  `dd/MM/yyyy` (los 4 formatos que trae la data legacy mezclados en el mismo archivo) y normalizan a
+  `LocalDate`. Internamente los patrones usan `'u'` (año ISO) en vez de `'y'` (año-de-era) — con
+  `ResolverStyle.STRICT`, `'y'` exige además una Era que nunca se provee y la fecha no llega a resolver
+  aunque el número de año sea correcto. `ResolverStyle.STRICT` sigue siendo clave para el otro caso: una
+  fecha inexistente como `2024-13-01` (mes 13) no se "corrige" silenciosamente, queda RECHAZADA.
+- **Transacciones**: se rechaza si el monto es ≤ 0, si el tipo no es `debito`/`credito` (cubre las
+  variantes inválidas `invalid`/`desconocido` del CSV), si la fecha no es parseable, o si la fila es un
+  duplicado exacto (misma fecha + monto + tipo ya visto).
 - **Intereses**: tasa mensual asumida — `ahorro 0.5%`, `préstamo 1.5%`, `hipoteca 1.0%` (no vienen
-  especificadas en el CSV legacy, se documentan aquí como supuesto). Se rechaza si la edad está fuera
-  de 18–120, si el saldo está vacío/no numérico/negativo, o si el registro es un duplicado del mismo
-  cliente.
-- **Cuentas anuales**: se rechaza si la fecha no es parseable, si falta la descripción, si el monto es
-  cero, o si un `deposito` viene con monto negativo (un depósito siempre debe sumar).
+  especificadas en el CSV legacy, se documentan aquí como supuesto). Se rechaza si el tipo de cuenta no
+  es uno de los 3 anteriores (cubre `unknown`/`-1`), si la edad está fuera de 18–120, si el saldo está
+  vacío/no numérico/negativo, o si el registro es un duplicado del mismo cliente.
+- **Cuentas anuales**: se rechaza si la fecha no es parseable, si el tipo de movimiento no es
+  `deposito`/`retiro`/`compra` (cubre las variantes inválidas `depósito` con tilde y `pago` del CSV de
+  esta semana), si falta la descripción, si el monto es cero, o si un `deposito` viene con monto
+  negativo (un depósito siempre debe sumar).

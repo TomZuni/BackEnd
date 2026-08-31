@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.batch.item.ItemProcessor;
@@ -28,8 +30,23 @@ import cl.duoc.bankxyz.migracion.entities.TransaccionEntity;
  */
 public class TransaccionProcessor implements ItemProcessor<TransaccionDTO, TransaccionEntity> {
 
-    private static final DateTimeFormatter FORMATO_ISO = DateTimeFormatter.ISO_LOCAL_DATE; // yyyy-MM-dd
-    private static final DateTimeFormatter FORMATO_LEGACY = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    /**
+     * La data legacy de esta semana trae 4 formatos de fecha distintos
+     * mezclados en el mismo archivo (uuuu-MM-dd, uuuu/MM/dd, dd-MM-uuuu y
+     * dd/MM/uuuu). Se intenta parsear con cada uno en orden; el primero que
+     * calce gana. Se usa el patron 'u' (año ISO) y no 'y' (año-de-era):
+     * con ResolverStyle.STRICT, 'y' exige ademas una Era (d.C./a.C.) que
+     * nunca se provee, y la fecha nunca terminaba de resolverse aunque el
+     * numero de año fuera correcto. ResolverStyle.STRICT si sigue siendo
+     * clave para el otro caso: sin el, "2024-13-01" (mes 13) se
+     * "normalizaria" a una fecha de otro mes en vez de fallar, y ese es
+     * justamente uno de los casos de inconsistencia a detectar.
+     */
+    private static final List<DateTimeFormatter> FORMATOS_FECHA = List.of(
+            DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("uuuu/MM/dd").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT),
+            DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT));
 
     private final Set<String> clavesVistas = new HashSet<>();
 
@@ -43,7 +60,7 @@ public class TransaccionProcessor implements ItemProcessor<TransaccionDTO, Trans
             return rechazar(id, null, null, dto.getTipo(), "Tipo de transaccion invalido: '" + dto.getTipo() + "'");
         }
 
-        // 2) Validar y normalizar fecha (el legacy puede traer yyyy/MM/dd)
+        // 2) Validar y normalizar fecha (el legacy mezcla varios formatos)
         LocalDate fecha = parsearFecha(dto.getFecha());
         if (fecha == null) {
             return rechazar(id, null, null, tipo, "Formato de fecha invalido: '" + dto.getFecha() + "'");
@@ -100,14 +117,13 @@ public class TransaccionProcessor implements ItemProcessor<TransaccionDTO, Trans
             return null;
         }
         String valor = rawFecha.trim();
-        try {
-            return LocalDate.parse(valor, FORMATO_ISO);
-        } catch (DateTimeParseException ex) {
+        for (DateTimeFormatter formato : FORMATOS_FECHA) {
             try {
-                return LocalDate.parse(valor, FORMATO_LEGACY);
-            } catch (DateTimeParseException ex2) {
-                return null;
+                return LocalDate.parse(valor, formato);
+            } catch (DateTimeParseException ex) {
+                // se intenta con el siguiente formato conocido
             }
         }
+        return null; // ningun formato calzo (o la fecha no existe, ej. mes 13)
     }
 }
