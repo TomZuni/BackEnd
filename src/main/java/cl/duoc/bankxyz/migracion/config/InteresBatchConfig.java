@@ -8,6 +8,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
@@ -47,7 +48,8 @@ import cl.duoc.bankxyz.migracion.processors.InteresProcessor;
 @Configuration
 public class InteresBatchConfig {
 
-    private static final int CHUNK_SIZE = 5;
+    @Value("${bankxyz.batch.chunk-size:5}")
+    private int chunkSize;
 
     @Value("${bankxyz.archivo-intereses:classpath:data/intereses.csv}")
     private Resource archivoIntereses;
@@ -80,7 +82,17 @@ public class InteresBatchConfig {
         return reader;
     }
 
+    /**
+     * @StepScope es obligatorio aqui: el processor guarda un Set de claves
+     * vistas (deteccion de duplicados) como estado de instancia. Sin
+     * @StepScope, el bean seria un singleton para toda la vida de la
+     * aplicacion, y ese Set arrastraria los duplicados de la PRIMERA
+     * ejecucion del Job hacia la segunda (el Job se dispara manualmente via
+     * POST, se puede correr mas de una vez). Con @StepScope se crea una
+     * instancia nueva (con su Set vacio) en cada ejecucion del Step.
+     */
     @Bean
+    @StepScope
     public InteresProcessor interesItemProcessor() {
         return new InteresProcessor();
     }
@@ -111,7 +123,7 @@ public class InteresBatchConfig {
                              JdbcBatchItemWriter<InteresEntity> interesItemWriter,
                              TaskExecutor batchTaskExecutor) {
         return new StepBuilder("interesStep", jobRepository)
-                .<InteresDTO, InteresEntity>chunk(CHUNK_SIZE, transactionManager)
+                .<InteresDTO, InteresEntity>chunk(chunkSize, transactionManager)
                 .reader(interesItemReaderSincronizado)
                 .processor(interesItemProcessor)
                 .writer(interesItemWriter)

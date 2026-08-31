@@ -8,6 +8,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
@@ -51,7 +52,8 @@ import cl.duoc.bankxyz.migracion.tasklets.ResumenTransaccionesTasklet;
 @Configuration
 public class TransaccionBatchConfig {
 
-    private static final int CHUNK_SIZE = 5;
+    @Value("${bankxyz.batch.chunk-size:5}")
+    private int chunkSize;
 
     @Value("${bankxyz.archivo-transacciones:classpath:data/transacciones.csv}")
     private Resource archivoTransacciones;
@@ -91,7 +93,17 @@ public class TransaccionBatchConfig {
         return reader;
     }
 
+    /**
+     * @StepScope es obligatorio aqui: el processor guarda un Set de claves
+     * vistas (deteccion de duplicados) como estado de instancia. Sin
+     * @StepScope, Spring crea un unico bean singleton para toda la vida de
+     * la aplicacion, y ese Set arrastraria los duplicados de la PRIMERA
+     * ejecucion del Job hacia la segunda (el Job se dispara manualmente via
+     * POST, se puede correr mas de una vez). Con @StepScope se crea una
+     * instancia nueva (con su Set vacio) en cada ejecucion del Step.
+     */
     @Bean
+    @StepScope
     public TransaccionProcessor transaccionItemProcessor() {
         return new TransaccionProcessor();
     }
@@ -120,7 +132,7 @@ public class TransaccionBatchConfig {
                                  JdbcBatchItemWriter<TransaccionEntity> transaccionItemWriter,
                                  TaskExecutor batchTaskExecutor) {
         return new StepBuilder("transaccionStep", jobRepository)
-                .<TransaccionDTO, TransaccionEntity>chunk(CHUNK_SIZE, transactionManager)
+                .<TransaccionDTO, TransaccionEntity>chunk(chunkSize, transactionManager)
                 .reader(transaccionItemReaderSincronizado)
                 .processor(transaccionItemProcessor)
                 .writer(transaccionItemWriter)

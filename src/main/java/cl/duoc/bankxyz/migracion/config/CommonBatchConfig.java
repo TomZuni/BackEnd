@@ -2,6 +2,7 @@ package cl.duoc.bankxyz.migracion.config;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -22,21 +23,29 @@ public class CommonBatchConfig {
 
     /**
      * Escalamiento (pauta S2, criterio "Escala el procesamiento... mediante
-     * chunks y multithreading"): pool fijo de 3 hilos de ejecucion paralela
-     * que usan los 3 Steps chunk-oriented. Se comparte entre los 3 Jobs
-     * porque en este proyecto se disparan uno a la vez via REST (no hay
+     * chunks y multithreading"): pool de hilos de ejecucion paralela que
+     * usan los 3 Steps chunk-oriented. Se comparte entre los 3 Jobs porque
+     * en este proyecto se disparan uno a la vez via REST (no hay
      * concurrencia real entre Jobs distintos).
      *
+     * El tamaño del pool es configurable via
+     * "bankxyz.batch.hilos" (application.properties) precisamente para
+     * poder comparar distintas configuraciones (1, 3, 6... hilos) sin
+     * recompilar y medir el impacto real en los tiempos que loguea
+     * BatchStepListener. Ver seccion "Comparacion de configuraciones de
+     * escalado" en el README para la metodologia y los resultados.
+     *
      * setQueueCapacity(0) + CallerRunsPolicy: si en algun momento se
-     * disparara mas de un Job en paralelo y se agotan los 3 hilos, el chunk
+     * disparara mas de un Job en paralelo y se agotan los hilos, el chunk
      * extra se ejecuta en el hilo que lo solicito en vez de acumularse en
      * una cola indefinida o perderse.
      */
     @Bean
-    public TaskExecutor batchTaskExecutor() {
+    public TaskExecutor batchTaskExecutor(
+            @Value("${bankxyz.batch.hilos:3}") int hilos) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(3);
-        executor.setMaxPoolSize(3);
+        executor.setCorePoolSize(hilos);
+        executor.setMaxPoolSize(hilos);
         executor.setQueueCapacity(0);
         executor.setThreadNamePrefix("bankxyz-batch-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());

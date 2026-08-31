@@ -50,7 +50,8 @@ import cl.duoc.bankxyz.migracion.tasklets.ResumenAnualTasklet;
 @Configuration
 public class CuentaAnualBatchConfig {
 
-    private static final int CHUNK_SIZE = 5;
+    @Value("${bankxyz.batch.chunk-size:5}")
+    private int chunkSize;
 
     @Value("${bankxyz.archivo-cuentas-anuales:classpath:data/cuentas_anuales.csv}")
     private Resource archivoCuentasAnuales;
@@ -112,7 +113,7 @@ public class CuentaAnualBatchConfig {
                                  JdbcBatchItemWriter<CuentaAnualEntity> cuentaAnualItemWriter,
                                  TaskExecutor batchTaskExecutor) {
         return new StepBuilder("cuentaAnualStep", jobRepository)
-                .<CuentaAnualDTO, CuentaAnualEntity>chunk(CHUNK_SIZE, transactionManager)
+                .<CuentaAnualDTO, CuentaAnualEntity>chunk(chunkSize, transactionManager)
                 .reader(cuentaAnualItemReaderSincronizado)
                 .processor(cuentaAnualItemProcessor)
                 .writer(cuentaAnualItemWriter)
